@@ -202,21 +202,40 @@ async function generateSummary(apiKey: string, model: string, data: any) {
   const openai = new OpenAI({ apiKey });
 
   const prompt = `
+  Summarize the following Pipedrive ${data.type} information in a concise and well-readable format that fits on one screen:
+
+  ${data.type.charAt(0).toUpperCase() + data.type.slice(1)}: ${JSON.stringify(data)}
+
+  Please adhere to the following guidelines:
+
+  - **${data.type.charAt(0).toUpperCase() + data.type.slice(1)} Overview:** Summarize in **two lines**, omitting any cryptic IDs.
+  - **Company Information:** Present all available company details in **one line**.
+  - **Contact Details:** Provide **one line per contact**, including all available information.
+  - **Notes and Activities:** Avoid duplicating content. If there's overlap between notes and activities, combine them. Provide **one line per activity**.
+  ${data.type === 'deal' ? `- **Activities:** List the most recent activities or next steps, **one line per activity**.` : ''}
+  ${data.type === 'lead' ? `- **Deals Information:** State "No deals are currently associated with this lead as it has not been converted to a deal yet."` : ''}
+  - **Overall Next Steps:** Include only if explicitly stated in the input; **do not make up any information**.
+
+  Use only the information provided above. Do not add any information that is not present in the given data.
+`;
+
+  /*
+  const prompt = `
     Summarize the following Pipedrive ${data.type} information in a structured and well-readable format:
 
     ${data.type.charAt(0).toUpperCase() + data.type.slice(1)}: ${JSON.stringify(data)}
 
     Please include the following sections:
     1. ${data.type.charAt(0).toUpperCase() + data.type.slice(1)} Overview (leave out cryptic IDs)
-    2. Company Information (address, location and postal code info in one line, but any info on annual spend or company size is important)
-    3. Contact Details (include everything that is available, for each available contact put all info in one line)
+    2. Company Information (address, location and postal code info in one line, any info on annual spend or company size is important)
+    3. Contact Details (include everything that is available, organize all info in onle line for each available contact)
     4. Notes Summary (explicitly include information about source, spend, information on company size, contact details, and next steps, if any)
     ${data.type === 'deal' ? `5. Activities (list the most recent activities or next steps)` : ''}
     ${data.type === 'lead' ? `5. Deals Information: Explicitly state "No deals are currently associated with this lead as it has not been converted to a deal yet."` : ''}
     6. Overall Next Steps (do not make up anything here, only add if clear from the input. If nothing was found in the input, mention that in your output).
 
     Use only the information provided above. Do not add any information that is not present in the given data.
-  `;
+  `;*/
 
   try {
     const response = await openai.chat.completions.create({
