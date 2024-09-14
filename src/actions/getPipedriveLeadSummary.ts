@@ -203,21 +203,23 @@ async function generateSummary(apiKey: string, model: string, data: any) {
 
   const prompt = `
   Summarize the following Pipedrive ${data.type} information in a concise and well-readable format that fits on one screen:
-
+  
   ${data.type.charAt(0).toUpperCase() + data.type.slice(1)}: ${JSON.stringify(data)}
-
+  
   Please adhere to the following guidelines:
-
-  - **${data.type.charAt(0).toUpperCase() + data.type.slice(1)} Overview:** Summarize in **two lines**, omitting any cryptic IDs.
-  - **Company Information:** Present all available company details in **one line**.
-  - **Contact Details:** Provide **one line per contact**, including all available information.
-  - **Notes and Activities:** Avoid duplicating content. If there's overlap between notes and activities, combine them. Provide **one line per activity**.
-  ${data.type === 'deal' ? `- **Activities:** List the most recent activities or next steps, **one line per activity**.` : ''}
-  ${data.type === 'lead' ? `- **Deals Information:** State "No deals are currently associated with this lead as it has not been converted to a deal yet."` : ''}
-  - **Overall Next Steps:** Include only if explicitly stated in the input; **do not make up any information**.
-
+  
+  - ${data.type.charAt(0).toUpperCase() + data.type.slice(1)} Overview: Summarize in two lines, including status and source if available. Always add lead/deal source if given, and omit any cryptic IDs.
+  - Company Information: Present all available company details in one line, emphasizing any size information.
+  - Contact Details: Provide one line per contact, always including phone and email if available.
+  - Notes and Activities: Avoid duplicating content. If there's overlap between notes and activities, combine them. Include duration if given. Provide one line per activity.
+  ${data.type === 'deal' ? `- Activities: List the most recent activities or next steps, one line per activity.` : ''}
+  ${data.type === 'lead' ? `- Deals Information: State "No deals are currently associated with this lead as it has not been converted to a deal yet."` : ''}
+  - Overall Next Steps: Include only if explicitly stated in the input; do not make up any information.
+  
+  Output should be in plain text without any special formatting.
+  
   Use only the information provided above. Do not add any information that is not present in the given data.
-`;
+  `;
 
   /*
   const prompt = `
