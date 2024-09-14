@@ -4,8 +4,8 @@ import axios from 'axios';
 
 const actionDefinition: ActionDefinition = {
   key: 'getPipedriveLeadOrDealSummary',
-  name: 'Get Pipedrive Lead or Deal Summary',
-  description: 'Receive a summary from a Pipedrive lead or deal using OpenAI',
+  name: 'Get Pipedrive Lead or Deal Status or Summary',
+  description: 'Receive a status or summary from a Pipedrive lead or deal using OpenAI',
   type: 'read',
   inputParameters: [
     {
@@ -32,7 +32,7 @@ const actionDefinition: ActionDefinition = {
     {
       key: 'openaiModel',
       name: 'OpenAI Model',
-      description: 'The OpenAI model to use (e.g., gpt-3.5-turbo, gpt-4)',
+      description: 'The OpenAI model to use (e.g., gpt-4o)',
       type: 'string',
       validation: { required: true },
     },
@@ -213,7 +213,7 @@ async function generateSummary(apiKey: string, model: string, data: any) {
     4. Notes Summary (explicitly include information about source, spend, information on company size, contact details, and next steps, if any)
     ${data.type === 'deal' ? `5. Activities (list the most recent activities or next steps)` : ''}
     ${data.type === 'lead' ? `5. Deals Information: Explicitly state "No deals are currently associated with this lead as it has not been converted to a deal yet."` : ''}
-    6. Overall Next Steps (do not make up anything here, only add if clear from the input)
+    6. Overall Next Steps (do not make up anything here, only add if clear from the input. If nothing was found in the input, mention that in your output).
 
     Use only the information provided above. Do not add any information that is not present in the given data.
   `;
