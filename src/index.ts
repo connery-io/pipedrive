@@ -1,5 +1,5 @@
 import { PluginDefinition, setupPluginServer } from 'connery';
-import getPipedriveLeadSummary from "./actions/getPipedriveLeadSummary.js";
+import getPipedriveLeadSummary from "./actions/getPipedriveLeadorDealInfo.js";
 
 const pluginDefinition: PluginDefinition = {
   name: 'Pipedrive',
