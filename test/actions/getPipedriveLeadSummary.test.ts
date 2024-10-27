@@ -1,8 +1,8 @@
-import { handler } from '../../src/actions/getPipedriveLeadSummary';
+import { handler } from '../../src/actions/getPipedriveLeadorDealInfo';
 
 // TODO #1: Rename xit() to it() to enable the test.
 // TODO #2: Change the test name below to match your use case.
-xit('should verify if the getPipedriveLeadSummary action works as expected', async () => {
+xit('should verify if the getPipedriveLeadorDealInfo action works as expected', async () => {
   const input = {
     /* TODO #3: Specify input for the action. */
   };
