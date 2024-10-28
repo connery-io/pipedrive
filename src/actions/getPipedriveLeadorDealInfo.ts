@@ -12,28 +12,36 @@ const actionDefinition: ActionDefinition = {
       name: 'Pipedrive Company Domain',
       description: 'Your Pipedrive company domain (e.g. yourcompany.pipedrive.com)',
       type: 'string',
-      validation: { required: true },
+      validation: {
+        required: true,
+      },
     },
     {
       key: 'pipedriveApiKey',
       name: 'Pipedrive API Key',
       description: 'Your Pipedrive API key',
       type: 'string',
-      validation: { required: true },
+      validation: {
+        required: true,
+      },
     },
     {
       key: 'instructions',
       name: 'Instructions',
       description: 'Optional instructions for processing the lead or deal information',
       type: 'string',
-      validation: { required: false },
+      validation: {
+        required: false,
+      },
     },
     {
       key: 'searchTerm',
       name: 'Search Term',
       description: 'Company name, contact name, or deal name to search for',
       type: 'string',
-      validation: { required: true },
+      validation: {
+        required: true,
+      },
     },
   ],
   operation: {
@@ -41,7 +49,7 @@ const actionDefinition: ActionDefinition = {
   },
   outputParameters: [
     {
-      key: 'textResponse',
+      key: 'response',
       name: 'Text Response',
       description: 'The comprehensive lead or deal information',
       type: 'string',
@@ -56,87 +64,79 @@ export async function handler({ input }: ActionContext): Promise<OutputObject> {
   const { pipedriveApiKey, companyDomain, searchTerm, instructions } = input;
   const fullDomain = `${companyDomain}.pipedrive.com`;
 
-  try {
-    const [leadResults, dealResults] = await Promise.all([
-      searchPipedriveLead(pipedriveApiKey, fullDomain, searchTerm),
-      searchPipedriveDeal(pipedriveApiKey, fullDomain, searchTerm)
-    ]);
+  const [leadResults, dealResults] = await Promise.all([
+    searchPipedriveLead(pipedriveApiKey, fullDomain, searchTerm),
+    searchPipedriveDeal(pipedriveApiKey, fullDomain, searchTerm),
+  ]);
 
-    const bestDeal = dealResults.data?.items?.length > 0
-      ? findBestMatch(dealResults.data.items, searchTerm)
-      : null;
-    const bestLead = leadResults.data?.items?.length > 0
-      ? findBestMatch(leadResults.data.items, searchTerm)
-      : null;
+  const bestDeal = dealResults.data?.items?.length > 0 ? findBestMatch(dealResults.data.items, searchTerm) : null;
+  const bestLead = leadResults.data?.items?.length > 0 ? findBestMatch(leadResults.data.items, searchTerm) : null;
 
-    let info: any = {
-      searchTerm,
-      leadsFound: leadResults.data?.items?.length ?? 0,
-      dealsFound: dealResults.data?.items?.length ?? 0,
+  let info: any = {
+    searchTerm,
+    leadsFound: leadResults.data?.items?.length ?? 0,
+    dealsFound: dealResults.data?.items?.length ?? 0,
+  };
+
+  if (bestDeal) {
+    info.bestMatch = {
+      type: 'deal',
+      data: await getDealInfo(pipedriveApiKey, fullDomain, bestDeal.id),
     };
-
-    if (bestDeal) {
-      info.bestMatch = {
-        type: 'deal',
-        data: await getDealInfo(pipedriveApiKey, fullDomain, bestDeal.id)
-      };
-    } else if (bestLead) {
-      info.bestMatch = {
-        type: 'lead',
-        data: await getLeadInfo(pipedriveApiKey, fullDomain, bestLead.id)
-      };
-    } else {
-      info.message = "No exact matches found.";
-      info.closestMatches = {
-        deals: dealResults.data.items.slice(0, 3).map((item: any) => ({
-          id: item.id,
-          title: item.title
-        })),
-        leads: leadResults.data.items.slice(0, 3).map((item: any) => ({
-          id: item.id,
-          title: item.title
-        }))
-      };
-    }
-
-    // Function to remove null values
-    function removeNulls(obj: any): any {
-      return Object.fromEntries(
-        Object.entries(obj)
-          .filter(([_, v]) => v != null)
-          .map(([k, v]) => [k, typeof v === 'object' ? removeNulls(v) : v])
-      );
-    }
-
-    let cleanedInfo = removeNulls(info);
-    let responseJson = JSON.stringify(cleanedInfo, null, 2);
-
-    if (instructions) {
-      responseJson = `Instructions for the following content: ${instructions}\n\n${responseJson}`;
-    }
-
-    if (responseJson.length > 90000) {
-      responseJson = responseJson.substring(0, 90000);
-    }
-
-    return {
-      textResponse: responseJson,
+  } else if (bestLead) {
+    info.bestMatch = {
+      type: 'lead',
+      data: await getLeadInfo(pipedriveApiKey, fullDomain, bestLead.id),
     };
-  } catch (error) {
-    throw new Error(`Failed to process request: ${error instanceof Error ? error.message : String(error)}`);
+  } else {
+    info.message = 'No exact matches found.';
+    info.closestMatches = {
+      deals: dealResults.data.items.slice(0, 3).map((item: any) => ({
+        id: item.id,
+        title: item.title,
+      })),
+      leads: leadResults.data.items.slice(0, 3).map((item: any) => ({
+        id: item.id,
+        title: item.title,
+      })),
+    };
   }
+
+  let cleanedInfo = removeNulls(info);
+  let responseJson = JSON.stringify(cleanedInfo, null, 2);
+
+  if (instructions) {
+    responseJson = `Instructions for the following content: ${instructions}\n\n${responseJson}`;
+  }
+
+  if (responseJson.length > 90000) {
+    responseJson = responseJson.substring(0, 90000);
+  }
+
+  return {
+    response: responseJson,
+  };
+}
+
+// Function to remove null values
+function removeNulls(obj: any): any {
+  return Object.fromEntries(
+    Object.entries(obj)
+      .filter(([_, v]) => v != null)
+      .map(([k, v]) => [k, typeof v === 'object' ? removeNulls(v) : v]),
+  );
 }
 
 async function searchPipedriveLead(apiKey: string, companyDomain: string, searchTerm: string) {
   const baseUrl = `https://${companyDomain}/api/v1`;
   const url = `${baseUrl}/leads/search`;
 
-  const headers = { 'x-api-token': apiKey, 'Accept': 'application/json' };
-  const params = { 
-    term: searchTerm, 
+  const headers = { 'x-api-token': apiKey, Accept: 'application/json' };
+  const params = {
+    term: searchTerm,
     fields: 'title,custom_fields,notes',
     exact_match: false,
-    limit: 10
+    limit: 10,
   };
 
   try {
@@ -155,12 +155,12 @@ async function searchPipedriveDeal(apiKey: string, companyDomain: string, search
   const baseUrl = `https://${companyDomain}/api/v1`;
   const url = `${baseUrl}/deals/search`;
 
-  const headers = { 'x-api-token': apiKey, 'Accept': 'application/json' };
-  const params = { 
-    term: searchTerm, 
+  const headers = { 'x-api-token': apiKey, Accept: 'application/json' };
+  const params = {
+    term: searchTerm,
     fields: 'title,custom_fields,notes',
     exact_match: false,
-    limit: 10
+    limit: 10,
   };
 
   try {
@@ -179,21 +179,25 @@ function findBestMatch(items: any[], searchTerm: string): any | null {
   if (!items || items.length === 0) return null;
 
   const searchTermLower = searchTerm.toLowerCase();
-  return items.reduce((best, item) => {
-    const currentItem = item.item || item;
-    const score = (currentItem.title?.toLowerCase().includes(searchTermLower) ? 3 : 0) +
-                  (currentItem.organization?.name?.toLowerCase().includes(searchTermLower) ? 2 : 0) +
-                  (currentItem.person?.name?.toLowerCase().includes(searchTermLower) ? 1 : 0);
-    
-    return (score > best.score || (score === best.score && item.result_score > best.resultScore)) 
-      ? { item: currentItem, score, resultScore: item.result_score } 
-      : best;
-  }, { item: null, score: -1, resultScore: -1 }).item;
+  return items.reduce(
+    (best, item) => {
+      const currentItem = item.item || item;
+      const score =
+        (currentItem.title?.toLowerCase().includes(searchTermLower) ? 3 : 0) +
+        (currentItem.organization?.name?.toLowerCase().includes(searchTermLower) ? 2 : 0) +
+        (currentItem.person?.name?.toLowerCase().includes(searchTermLower) ? 1 : 0);
+
+      return score > best.score || (score === best.score && item.result_score > best.resultScore)
+        ? { item: currentItem, score, resultScore: item.result_score }
+        : best;
+    },
+    { item: null, score: -1, resultScore: -1 },
+  ).item;
 }
 
 async function getLeadInfo(apiKey: string, companyDomain: string, leadId: string) {
   const baseUrl = `https://${companyDomain}/api/v1`;
-  const headers = { 'x-api-token': apiKey, 'Accept': 'application/json' };
+  const headers = { 'x-api-token': apiKey, Accept: 'application/json' };
 
   try {
     const leadInfo = await axios.get(`${baseUrl}/leads/${leadId}`, { headers });
@@ -234,7 +238,7 @@ async function getDealInfo(apiKey: string, companyDomain: string, dealId: number
   const baseUrl = `https://${companyDomain}/api/v1`;
   const url = `${baseUrl}/deals/${dealId}`;
 
-  const headers = { 'x-api-token': apiKey, 'Accept': 'application/json' };
+  const headers = { 'x-api-token': apiKey, Accept: 'application/json' };
   const params = { get_all_custom_fields: true };
 
   try {
